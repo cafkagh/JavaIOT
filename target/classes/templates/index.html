@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Mercury Server Manager</title>
+    <link rel="stylesheet" href="https://static.spike.org.cn/bootstrap/css/bootstrap-table.min.css">
+    <link rel="stylesheet" href="https://static.spike.org.cn/bootstrap/css/bootstrap.min.css" >
+    <link rel="stylesheet" href="https://static.spike.org.cn/fontawesome/css/fontawesome.css" >
+    <link rel="stylesheet" href="https://static.spike.org.cn/ace/css/ace.min.css">
+    <style>
+        body{
+            background-color: #FFF;
+        }
+        h3.header{
+            display: inline-block;
+            padding-left: 5px;
+        }
+
+        #app {
+            margin: 30px auto;
+            width: 80%;
+            background-color: #eee;
+            border: 1px solid #eee;
+        }
+        .refresh{
+            margin: 10px;
+            float: right;
+        }
+        .loading{
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        @media screen and (max-width: 480px){
+            #app {
+                margin: 0px auto;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+</div>
+
+</body>
+
+<script src="https://static.spike.org.cn/jquery/jquery.min.js"></script>
+<script src="https://static.spike.org.cn/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://static.spike.org.cn/bootstrap/js/bootstrap-table.min.js"></script>
+
+<script src="https://static.spike.org.cn/react/react.development.js" ></script>
+<script src="https://static.spike.org.cn/react/react-dom.development.js" ></script>
+
+<script src="https://static.spike.org.cn/react/babel.min.js"></script>
+
+<!--<script src="https://static.spike.org.cn/react/react.production.min.js" ></script>-->
+<!--<script src="https://static.spike.org.cn/react/react-dom.production.min.js" ></script>-->
+<script type="text/babel">
+    class MainApp extends React.Component {
+        constructor(props) {
+            super(props);
+            this.state = {
+                clients: [],
+                hardwares: [],
+                ips:[],
+                loading:true
+            };
+        }
+
+        componentDidMount() {
+            this.getList();
+            setInterval(() => {
+                this.getList();
+            },5000)
+        }
+
+        componentWillUnmount() {
+            this.serverRequest.abort();
+        }
+
+        clickGetList = () =>{
+            this.setState({"loading": true});
+            this.getList();
+        }
+
+        closeClient = (clientID) => {
+            let that = this;
+            this.serverRequest = $.get(this.props.source + "/admin/closeclient/" + clientID, function (result) {
+                console.log(result);
+                that.getList();
+            }.bind(this))
+        }
+
+        getList = () =>{
+            this.serverRequest = $.get(this.props.source + "/admin/getClients", function (result) {
+                const data = result.data;
+                this.setState({
+                    "clients": data.clients,
+                    "hardwares": data.hardwares,
+                    "ips": data.ips,
+                    "loading": false
+                });
+            }.bind(this))
+        }
+
+        Loading = () => {
+            return (
+                <tr role="row" className="loading" key='loading' ><td colSpan="6">正在加载</td></tr>
+            );
+        }
+
+        Paged = (props) => {
+            return (
+                <div>
+                    <div id="dynamic-table_wrapper" className="dataTables_wrapper form-inline no-footer">
+                        <div className="row">
+                            <div className="col-xs-6">
+                                <div className="dataTables_paginate paging_simple_numbers" id="dynamic-table_paginate">
+                                    <ul className="pagination">
+                                        <li className="paginate_button previous disabled" id="dynamic-table_previous"><a href="#"> 上一页 </a></li>
+                                        <li className="paginate_button active"><a href="#">1</a></li>
+                                        <li className="paginate_button next" id="dynamic-table_next"><a href="#"> 下一页 </a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        Trst = (props) => {
+            const { clients, hardwares, ips,  } = this.state;
+            const { closeClient } = this;
+            // console.log(clients);
+            let i = 0;
+            const listItems = clients.map((client) =>
+                <tr role="row" className="" key={client}>
+                    <td>{++i}</td>
+                    <td className="hidden-480">{client}</td>
+                    <td>{hardwares[client]}</td>
+                    <td>{ips[client]}</td>
+                    <td>
+                        <a className="blue" href="#">
+                            <i className="ace-icon fa fa-unlink bigger-130" title="断开连接" onClick={function(){closeClient(client)}}></i>
+                        </a>
+                    </td>
+                </tr>
+            );
+            return (
+                listItems
+            );
+        }
+
+        Tablet = (props) => {
+            const { Trst, Loading, state } = this;
+            return (
+                <table id="dynamic-table" className="table table-striped table-bordered table-hover dataTable no-footer" role="grid" aria-describedby="dynamic-table_info">
+                    <thead>
+                        <tr role="row">
+                            <th tabIndex="0" rowSpan="1" colSpan="1"></th>
+                            <th className="hidden-480" tabIndex="0" rowSpan="1" colSpan="1">SocketID</th>
+                            <th rowSpan="1" colSpan="1">HardwareID</th>
+                            <th tabIndex="0" rowSpan="1" colSpan="1">IP</th>
+                            <th rowSpan="1" colSpan="1" aria-label="">Option</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                     {state.loading ? (
+                        <Loading />
+                      ) : (
+                        <Trst />
+                      )}
+                    </tbody>
+                </table>
+            );
+        }
+
+        render(){
+            const { Paged, Tablet, clickGetList } = this;
+            return (
+                <div className="row">
+                    <div className="col-xs-12">
+                        <div className="row">
+                            <div className="col-xs-12">
+                            <h3 className="header smaller lighter blue">Tcp Server Manager</h3>
+                                <a className="btn btn-info refresh" onClick={clickGetList}>
+                                    <i className="ace-icon fa fa-sync-alt bigger-130" aria-hidden="true"></i>
+                                    刷新
+                                </a>
+                            </div>
+                        </div>
+                        <div className="table-header">
+                            Client Pool
+                        </div>
+
+                        <Tablet />
+                        {/*<Paged />*/}
+                    </div>
+                </div>
+            )
+        }
+    }
+
+    ReactDOM.render(
+      // <MainApp source="https://mercury2.spike.org.cn" />,
+      <MainApp source="http://127.0.0.1:12345" />,
+      document.getElementById('app')
+    );
+</script>
+</html>
